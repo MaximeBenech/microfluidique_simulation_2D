@@ -12,7 +12,11 @@ import numpy as np
 
 def indice_melange(nuage, L0, N):
     """
-    Indice de melange I_n = f * I_carre.
+    Indice de melange I_n = f * I_carre, et ses deux composantes
+    renvoyees separement pour pouvoir les tracer chacune de leur cote
+    (utile pour diagnostiquer une redescente de I_n : vient-elle d'une
+    vraie perte d'entropie interne, I_carre qui baisse, ou d'une sortie
+    de particules hors du carre, f qui baisse, ou les deux ?).
 
     f       : fraction de la population actuellement dans le carre de
               rencontre L0^2 (a maximiser). Se reduit a une seule
@@ -23,26 +27,21 @@ def indice_melange(nuage, L0, N):
               particules qui y sont presentes (renormalisee sur cet
               effectif, pas sur l'effectif total du nuage).
 
-    Le produit (pas une somme) garantit que l'indice reste nul si l'un
-    des deux facteurs l'est -- un nuage bien reparti mais absent du
-    carre n'obtient pas un score flatteur. Si f=0, retourne 0.0
-    directement (aucune entropie calculable sur un ensemble vide).
+    Le produit I_n = f * I_carre (pas une somme) garantit que l'indice
+    reste nul si l'un des deux facteurs l'est. Si f=0, retourne
+    (0.0, 0.0, 0.0) par convention (aucune entropie calculable sur un
+    ensemble vide, mais on garde des historiques de type flottant
+    homogenes plutot que None).
 
-    Cette definition remplace un choix precedent (calculer l'entropie
-    sur une fenetre qui suivrait les barrieres b_a, b_d) : cette
-    fenetre aurait fait grimper I_n quand le nuage s'echappe et s'etale
-    dans le bras secondaire -- exactement la meme illusion que la fuite
-    de l'ancien modele, reapparue par un autre chemin. Avec f*I_carre,
-    la fenetre de mesure reste le carre L0^2 fixe, quelles que soient
-    les valeurs de b_a, b_d.
+    Utilisation : I_n, f, I_carre = indice_melange(nuage, L0, N)
 
-    Utilisation : I = indice_melange(nuage, L0, N)
+    Retourne : (I_n, f, I_carre)
     """
     x, y = nuage[:, 0], nuage[:, 1]
     dans_carre = np.abs(y) < L0 / 2
     n_dans_carre = np.count_nonzero(dans_carre)
     if n_dans_carre == 0:
-        return 0.0
+        return 0.0, 0.0, 0.0
     f = n_dans_carre / len(nuage)
 
     bords = np.linspace(-L0 / 2, L0 / 2, N + 1)
@@ -53,7 +52,7 @@ def indice_melange(nuage, L0, N):
     S_max = np.log(N * N)
     I_carre = S / S_max
 
-    return f * I_carre
+    return f * I_carre, f, I_carre
 
 
 def alpha_beta(Vm, Tx, Ty, L0):
@@ -96,9 +95,10 @@ def params_physiques(alpha, beta, L0, Vm0):
 
 def simuler(nuage_initial, cycle_fn, L0, N, n_iterations, instants=None):
     """
-    Fait avancer un nuage de n_iterations cycles, en calculant I_n a
-    chaque cycle. Conserve un instantane du nuage uniquement aux cycles
-    listes dans "instants" (liste explicite fournie par l'appelant).
+    Fait avancer un nuage de n_iterations cycles, en calculant I_n, f et
+    I_carre a chaque cycle. Conserve un instantane du nuage uniquement
+    aux cycles listes dans "instants" (liste explicite fournie par
+    l'appelant).
 
     Parametres
     ----------
@@ -112,23 +112,28 @@ def simuler(nuage_initial, cycle_fn, L0, N, n_iterations, instants=None):
 
     Retourne
     --------
-    (historique_I, instantanes)
-    historique_I : liste de longueur n_iterations+1, I_n pour n=0..n_iterations.
-    instantanes  : dict {n: nuage a cet instant}, seulement pour les n
-                   demandes dans "instants".
+    (historique_I, historique_f, historique_I_carre, instantanes)
+    historique_I, historique_f, historique_I_carre : listes de longueur
+        n_iterations+1, valeurs pour n=0..n_iterations.
+    instantanes : dict {n: nuage a cet instant}, seulement pour les n
+                  demandes dans "instants".
     """
     instants = set(instants) if instants else set()
     nuage = nuage_initial.copy()
-    historique_I = [indice_melange(nuage, L0, N)]
+    I_n, f, I_carre = indice_melange(nuage, L0, N)
+    historique_I, historique_f, historique_I_carre = [I_n], [f], [I_carre]
     instantanes = {}
     if 0 in instants:
         instantanes[0] = nuage.copy()
     for n in range(1, n_iterations + 1):
         nuage = cycle_fn(nuage)
-        historique_I.append(indice_melange(nuage, L0, N))
+        I_n, f, I_carre = indice_melange(nuage, L0, N)
+        historique_I.append(I_n)
+        historique_f.append(f)
+        historique_I_carre.append(I_carre)
         if n in instants:
             instantanes[n] = nuage.copy()
-    return historique_I, instantanes
+    return historique_I, historique_f, historique_I_carre, instantanes
 
 
 def n_etoile(nuage_initial, cycle_fn, L0, N, I_seuil, n_max):
@@ -141,11 +146,13 @@ def n_etoile(nuage_initial, cycle_fn, L0, N, I_seuil, n_max):
     ("non converge").
     """
     nuage = nuage_initial.copy()
-    if indice_melange(nuage, L0, N) > I_seuil:
+    I_n, _, _ = indice_melange(nuage, L0, N)
+    if I_n > I_seuil:
         return 0
     for n in range(1, n_max + 1):
         nuage = cycle_fn(nuage)
-        if indice_melange(nuage, L0, N) > I_seuil:
+        I_n, _, _ = indice_melange(nuage, L0, N)
+        if I_n > I_seuil:
             return n
     return None
 

@@ -24,18 +24,19 @@ def afficher_sequence(resultats, labels, L0):
 
     Parametres
     ----------
-    resultats : liste de (historique_I, instantanes), un couple par
-                nuage, telle que retournee par main.simulation_unique.
-                Tous les nuages doivent partager les memes instants --
-                garanti par simulation_unique, qui applique un seul
-                "instants" a tous les nuages a la fois.
+    resultats : liste de (historique_I, historique_f, historique_I_carre,
+                instantanes), un tuple par nuage, telle que retournee par
+                orchestration.simulation_unique. Tous les nuages doivent
+                partager les memes instants -- garanti par
+                simulation_unique, qui applique un seul "instants" a
+                tous les nuages a la fois.
     labels    : liste de legendes, une par nuage, dans le meme ordre que
                 "resultats".
     L0        : pour fixer les memes limites d'affichage sur chaque image.
 
     Retourne : la figure matplotlib (a afficher ensuite avec plt.show()).
     """
-    instants = sorted(resultats[0][1].keys())
+    instants = sorted(resultats[0][3].keys())
     ncols = 3
     nrows = -(-len(instants) // ncols)  # division entiere arrondie au-dessus
     fig, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 4 * nrows))
@@ -44,7 +45,7 @@ def afficher_sequence(resultats, labels, L0):
 
     for ax, n in zip(axes, instants):
         titre = [f"n={n}"]
-        for i, (historique_I, instantanes) in enumerate(resultats):
+        for i, (historique_I, historique_f, historique_I_carre, instantanes) in enumerate(resultats):
             pts = instantanes[n]
             ax.scatter(
                 pts[:, 0], pts[:, 1], s=1,
@@ -147,4 +148,41 @@ def tracer_In_multiple(historiques, labels, I_seuil):
     ax.set_xlabel("n")
     ax.set_ylabel("I_n")
     ax.legend()
+    return fig
+
+
+def tracer_f_I_carre(resultats, labels):
+    """
+    f et I_carre separement (les deux facteurs de I_n = f * I_carre),
+    une figure a part de I_n -- utile pour diagnostiquer une redescente
+    de I_n : vient-elle d'une vraie perte d'entropie interne (I_carre
+    qui baisse) ou d'une sortie de particules hors du carre (f qui
+    baisse), ou les deux ?
+
+    Meme couleur par nuage que sur les autres figures (afficher_sequence,
+    tracer_In_multiple), pour reconnaitre immediatement le meme nuage
+    d'une figure a l'autre -- la distinction entre f et I_carre se fait
+    par le style du trait, pas par la couleur : trait plein pour
+    I_carre, tirets pour f.
+
+    Parametres
+    ----------
+    resultats : liste de (historique_I, historique_f, historique_I_carre,
+                instantanes), telle que retournee par
+                orchestration.simulation_unique.
+    labels    : liste de legendes, une par nuage.
+
+    Retourne : la figure matplotlib.
+    """
+    couleurs = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    fig, ax = plt.subplots()
+    for i, (historique_I, historique_f, historique_I_carre, _) in enumerate(resultats):
+        c = couleurs[i % len(couleurs)]
+        n = range(len(historique_I_carre))
+        ax.plot(n, historique_I_carre, color=c, linestyle="-", label=f"{labels[i]} - I_carre")
+        ax.plot(n, historique_f, color=c, linestyle="--", label=f"{labels[i]} - f")
+    ax.set_xscale("log")
+    ax.set_xlabel("n")
+    ax.set_ylabel("valeur")
+    ax.legend(fontsize=8)
     return fig

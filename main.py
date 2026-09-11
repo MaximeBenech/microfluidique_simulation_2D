@@ -29,18 +29,18 @@ if __name__ == "__main__":
     #    pour illustrer l'usage ; Vm vient de protocole.VM0 (fixe pour
     #    tout le protocole), pas de cette ancienne valeur.
     # ------------------------------------------------------------------
-    Tx, Ty = 1.6, 0.5
+    Tx, Ty = 1.8, 0.5
 
     cycle_fn = orchestration.construire_cycle_fn_physique(
         protocole.VM0, Tx, Ty, protocole.L0, protocole.B_A, protocole.B_D
     )
 
-    nuage_A = simulation.nuage_initial(x0=-24, y0=12, Nx=40, Ny=40, pas=0.05)
-    nuage_B = simulation.nuage_initial(x0=-75, y0=-5, Nx=40, Ny=40, pas=0.05)
+    nuage_A = simulation.nuage_initial(x0=-24, y0=12, Nx=50, Ny=50, pas=0.05)
+    nuage_B = simulation.nuage_initial(x0=-75, y0=-5, Nx=50, Ny=50, pas=0.05)
     labels = ["nuage A (-24, 12)", "nuage B (-75, -5)"]
 
-    instants = [0, 5, 20, 50, 100, 200, 500, 1000, 5000]
-    n_iterations = 10000
+    instants = [0, 5, 20, 100, 300]
+    n_iterations = 300
 
     resultats_simulation = orchestration.simulation_unique(
         cycle_fn, [nuage_A, nuage_B], protocole.L0, protocole.N,
@@ -48,6 +48,7 @@ if __name__ == "__main__":
     )
 
     visualisation.afficher_sequence(resultats_simulation, labels, protocole.L0)
+    visualisation.tracer_f_I_carre(resultats_simulation, labels)
 
     # Points de reference (alpha, beta, n*) issus de cette simulation
     # unique -- calcules une seule fois, reutilises sur les DEUX figures
@@ -55,7 +56,7 @@ if __name__ == "__main__":
     alpha_sim, beta_sim = mesures.alpha_beta(protocole.VM0, Tx, Ty, protocole.L0)
     points_reference = [
         (alpha_sim, beta_sim, mesures.n_depuis_historique(historique_I, protocole.I_SEUIL))
-        for historique_I, _ in resultats_simulation
+        for historique_I, _, _, _ in resultats_simulation
     ]
     visualisation.afficher_n_star(labels, points_reference)
 
@@ -63,7 +64,7 @@ if __name__ == "__main__":
     # 2) n*(alpha) a beta fixe -- jusqu'a 4 courbes, points de reference
     #    superposes.
     # ------------------------------------------------------------------
-    grille_alpha = np.linspace(0.15, 0.35, 10)
+    grille_alpha = np.linspace(0.15, 0.35, 5)
     beta_fixes = [0.5, 1.0, 2.0, 4.0]
     nuage_test = nuage_A  # un seul nuage pour tout le balayage
 
@@ -77,7 +78,7 @@ if __name__ == "__main__":
     # ------------------------------------------------------------------
     # 3) n*(beta) a alpha fixe, memes points de reference superposes.
     # ------------------------------------------------------------------
-    grille_beta = np.geomspace(0.3, 5.0, 10)
+    grille_beta = np.geomspace(0.3, 5.0, 5)
     alpha_fixes = [0.15, 0.20, 0.25, 0.30]
 
     resultats_vs_beta = orchestration.balayage_complet(
@@ -91,7 +92,7 @@ if __name__ == "__main__":
     # 4) I_n(n) pour un couple (alpha, beta) fixe, deux positions
     #    initiales differentes. Reutilise les historiques du point 1).
     # ------------------------------------------------------------------
-    historiques = [h for h, _ in resultats_simulation]
+    historiques = [h for h, _, _, _ in resultats_simulation]
     visualisation.tracer_In_multiple(historiques, labels, protocole.I_SEUIL)
 
     plt.show()
