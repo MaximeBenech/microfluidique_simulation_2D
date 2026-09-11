@@ -35,9 +35,11 @@ if __name__ == "__main__":
         protocole.VM0, Tx, Ty, protocole.L0, protocole.B_A, protocole.B_D
     )
 
-    nuage_A = simulation.nuage_initial(x0=-24, y0=12, Nx=50, Ny=50, pas=0.05)
-    nuage_B = simulation.nuage_initial(x0=-75, y0=-5, Nx=50, Ny=50, pas=0.05)
-    labels = ["nuage A (-24, 12)", "nuage B (-75, -5)"]
+    x0_A, y0_A = -24, 12
+    x0_B, y0_B = -75, -5
+    nuage_A = simulation.nuage_initial(x0=x0_A, y0=y0_A, Nx=50, Ny=50, pas=0.05)
+    nuage_B = simulation.nuage_initial(x0=x0_B, y0=y0_B, Nx=50, Ny=50, pas=0.05)
+    labels = [f"nuage ({x0_A}, {y0_A})", f"nuage ({x0_B}, {y0_B})"]
 
     instants = [0, 5, 20, 100, 300]
     n_iterations = 300
