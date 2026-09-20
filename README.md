@@ -65,6 +65,21 @@ Sur Google Colab :
 %run main.py
 ```
 
+**Après une modification de `protocole.py` (ou tout autre fichier) dans une session déjà démarrée**, `%run main.py` seul ne suffit pas : Python garde les modules déjà importés en mémoire et ne relit pas le fichier depuis le disque, même après un `git pull` ou une édition dans l'éditeur intégré. Le symptôme typique : vous changez `I_SEUIL` ou `L0`, vous relancez, et les résultats ne bougent pas — l'ancienne valeur est toujours utilisée en silence, sans erreur ni avertissement.
+
+Deux façons d'en sortir :
+
+```python
+import importlib
+import protocole
+importlib.reload(protocole)
+%run main.py
+```
+
+ou, plus radical mais plus sûr si le doute persiste : **Exécution → Redémarrer la session**, puis relancer `%cd` et `%run` (les fichiers déjà clonés restent sur le disque, pas besoin de recloner).
+
+Reprendre l'habitude d'ajouter le `importlib.reload(protocole)` juste avant chaque `%run`, dans la même cellule, évite d'avoir à se poser la question à chaque test.
+
 ## Ce que le modèle représente physiquement
 
 - **x (canal principal)** : périodique — une particule qui sort d'un
